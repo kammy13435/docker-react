@@ -1,0 +1,42 @@
+name: Docker CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t kammy/docker-react -f Dockerfile.dev .
+
+      - name: Run tests
+        run: docker run kammy/docker-react npm run test -- --coverage
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to Elastic Beanstalk
+        uses: einaregilsson/beanstalk-deploy@v22
+        with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_KEY }}
+          application_name: docker
+          environment_name: Docker-env
+          region: us-east-1
+          bucket_name: elasticbeanstalk-us-east-1-050843904544
+          bucket_path: docker
+          version_label: ${{ github.sha }}
+          deployment_package: deploy.zip
